@@ -1,0 +1,219 @@
+<template>
+    <div class="outer-wrapper">
+        <div class="custom-card">
+
+            <!-- Header -->
+            <div class="card-header">
+                <h2>Account Google Drive Files</h2>
+            </div>
+
+            <!-- Loading -->
+            <template if:true={isLoading}>
+                <div class="loading-container">
+                    <lightning-spinner
+                        alternative-text="Loading..."
+                        size="medium"
+                        variant="brand">
+                    </lightning-spinner>
+                </div>
+            </template>
+
+            <template if:true={isInitialized}>
+                <div class="card-body">
+
+                    <!-- No Folder -->
+                    <template if:false={folderExists}>
+                        <div class="no-folder-wrapper">
+                            <div class="no-folder-card">
+                                <img src={driveIcon} class="drive-icon" />
+                                <p class="no-folder-text">
+                                    No Google Drive folder found for this Account.
+                                </p>
+                                <lightning-button
+                                    label="Create Account Folder"
+                                    variant="brand"
+                                    onclick={createFolder}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Folder Exists -->
+                    <template if:true={folderExists}>
+
+                        <!-- Top Control Row -->
+                        <div class="top-control-row">
+
+                            <!-- Left Side: Upload Toggle -->
+                            <div class="left-section">
+                                <lightning-input
+                                    type="checkbox"
+                                    label="Upload files to Google Drive"
+                                    checked={isUploadMode}
+                                    onchange={handleUploadToggle}>
+                                </lightning-input>
+                            </div>
+
+                            <!-- Right Side: Generate Button -->
+                            <div class="right-section">
+                                <lightning-button
+                                    label="Generate Account Report"
+                                    variant="brand"
+                                    onclick={generateReport}
+                                    disabled={isLoading}>
+                                </lightning-button>
+                            </div>
+
+                        </div>
+
+                        <!-- Upload Section -->
+                        <template if:true={isUploadMode}>
+                            <div class="upload-section">
+                                <div class="upload-card">
+
+                                    <!-- File Input -->
+                                    <div class="file-input-wrapper">
+                                        <lightning-input
+                                            type="file"
+                                            onchange={handleFileChange}>
+                                        </lightning-input>
+
+                                        <p class="file-size-note">
+                                            Note: File size must be less than 5 MB.
+                                        </p>
+
+                                        <!-- Selected File Preview -->
+                                        <template if:true={selectedFileName}>
+                                            <div class="selected-file-pill">
+                                                <span class="file-name-text">
+                                                    {selectedFileName}
+                                                </span>
+
+                                                <button
+                                                    class="clear-file-btn"
+                                                    onclick={clearSelectedFile}
+                                                    title="Remove File">
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <!-- Upload Button -->
+                                    <button
+                                        class="custom-upload-btn"
+                                        onclick={handleUpload}
+                                        disabled={isUploadDisabled}>
+
+                                        <template if:true={isUploading}>
+                                            <lightning-spinner
+                                                alternative-text="Uploading"
+                                                size="x-small"
+                                                class="upload-spinner">
+                                            </lightning-spinner>
+                                        </template>
+
+                                        <template if:false={isUploading}>
+                                            Upload File
+                                        </template>
+
+                                    </button>
+
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Files Table -->
+                        <template if:true={files.length}>
+                            <div class="table-section">
+                                <h3 class="section-title">
+                                    Files in Account Folder
+                                </h3>
+
+                                <div class="table-container">
+                                    <table class="custom-table">
+                                        <thead>
+                                            <tr>
+                                                <th>File Name</th>
+                                                <th>Type</th>
+                                                <th>Size</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={files} for:item="file">
+                                                <tr key={file.id}>
+                                                    <td>
+                                                        <div class="file-name-wrapper">
+                                                            <template if:true={file.isPdf}>
+                                                                <lightning-icon
+                                                                    icon-name="doctype:pdf"
+                                                                    size="x-small">
+                                                                </lightning-icon>
+                                                            </template>
+
+                                                            <template if:false={file.isPdf}>
+                                                                <lightning-icon
+                                                                    icon-name="doctype:attachment"
+                                                                    size="x-small">
+                                                                </lightning-icon>
+                                                            </template>
+
+                                                            <span class="file-text">
+                                                                {file.name}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+
+                                                    <td>{file.mimeType}</td>
+                                                    <td>{file.formattedSize}</td>
+
+                                                    <td>
+                                                        <div class="action-buttons">
+                                                            <lightning-button-icon
+                                                                icon-name="utility:preview"
+                                                                data-id={file.id}
+                                                                onclick={handlePreview}>
+                                                            </lightning-button-icon>
+
+                                                            <lightning-button-icon
+                                                                icon-name="utility:download"
+                                                                data-id={file.id}
+                                                                onclick={handleDownload}>
+                                                            </lightning-button-icon>
+
+                                                            <lightning-button-icon
+                                                                icon-name="utility:delete"
+                                                                data-id={file.id}
+                                                                onclick={handleDeleteClick}>
+                                                            </lightning-button-icon>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- No Files -->
+                        <template if:false={files.length}>
+                            <div class="no-files-container">
+                                <lightning-icon
+                                    icon-name="utility:open_folder"
+                                    size="large"
+                                    class="no-files-icon">
+                                </lightning-icon>
+                                <p>No documents present in this folder.</p>
+                            </div>
+                        </template>
+
+                    </template>
+
+                </div>
+            </template>
+
+        </div>
+    </div>
+</template>
