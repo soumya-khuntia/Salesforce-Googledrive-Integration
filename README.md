@@ -15,7 +15,9 @@ This solution enables:
 - 📤 File upload directly from Salesforce
 - 👀 File preview
 - ⬇️ File download
-- 🗑️ File deletion
+- 🗑️ Move files to Trash
+- ♻️ Restore files from Trash
+- ❌ Permanent file deletion from Trash
 - 📄 Dynamic Account PDF report generation and upload
 - 🔐 Folder-level permission management
 - 📏 File size validation (Maximum 5MB)
@@ -24,6 +26,7 @@ This solution enables:
 ---
 
 ## 🏗️ Architecture
+```text
 Salesforce LWC (UI)
 ↓
 Apex Controller (Callouts)
@@ -31,16 +34,15 @@ Apex Controller (Callouts)
 Google Drive REST API
 ↓
 Google Cloud Console (OAuth 2.0)
-
+```
 ---
 
 ## 🌐 Google API Configuration
 
-### Base URL
-https://www.googleapis.com
+- **Base URL:** https://www.googleapis.com
 
-### OAuth Scope
-openid email profile https://www.googleapis.com/auth/drive
+
+- **OAuth Scope:** openid email profile https://www.googleapis.com/auth/drive
 
 ---
 
@@ -114,7 +116,9 @@ Handles:
 - Folder creation
 - File upload (multipart request)
 - File retrieval
-- File deletion
+- Move files to Trash
+- Restore files from Trash
+- Permanent file deletion from Trash
 - Permission management
 - Report upload
 
@@ -130,7 +134,7 @@ Handles:
 2. LWC calls Apex to check if the Account folder exists in Google Drive.
 3. If not found, Apex creates a subfolder.
 4. Folder-level permission is applied.
-5. Users can upload, preview, download, and delete files.
+5. Users can upload, preview, download, move to trash, restore and permanent delete files.
 6. Account PDF report can be generated and uploaded.
 7. File size validation ensures files are under 5MB.
 
