@@ -208,6 +208,11 @@
     transition: 0.2s ease-in-out;
 }
 
+.table-section:last-child {
+    border-top: 1px solid #E5EAF3;
+    padding-top: 20px;
+}
+
 /* File Name */
 
 .file-name-wrapper {

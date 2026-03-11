@@ -1,11 +1,15 @@
 import { LightningElement, api, track } from 'lwc';
 
 import getFilesFromFolder from '@salesforce/apex/GoogleDriveUpload.getFilesFromFolder';
-import deleteFile from '@salesforce/apex/GoogleDriveUpload.deleteFile';
+import moveFileToTrash from '@salesforce/apex/GoogleDriveUpload.moveFileToTrash';
 import checkOrCreateSubFolder from '@salesforce/apex/GoogleDriveUpload.checkOrCreateSubFolder';
 import generateAndUploadAccountReport from '@salesforce/apex/GoogleDriveUpload.generateAndUploadAccountReport';
 import checkExistingReport from '@salesforce/apex/GoogleDriveUpload.checkExistingReport';
 import uploadToFolder from '@salesforce/apex/GoogleDriveUpload.uploadToFolder';
+
+import getTrashedFiles from '@salesforce/apex/GoogleDriveUpload.getTrashedFiles';
+import restoreFile from '@salesforce/apex/GoogleDriveUpload.restoreFile';
+import permanentlyDeleteFile from '@salesforce/apex/GoogleDriveUpload.permanentlyDeleteFile';
 
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import LightningConfirm from 'lightning/confirm';
@@ -31,6 +35,7 @@ export default class AccountGoogleDrive extends LightningElement {
     driveIcon = GOOGLE_DRIVE_ICON;
 
     @track files = [];
+    @track trashedFiles = [];
 
     // LIFECYCLE
     connectedCallback() {
@@ -52,7 +57,7 @@ export default class AccountGoogleDrive extends LightningElement {
             if (result) {
                 this.subFolderId = result;
                 this.folderExists = true;
-                await this.loadFiles();
+                await this.refreshAllFiles();
             } else {
                 this.folderExists = false;
             }
@@ -110,6 +115,34 @@ export default class AccountGoogleDrive extends LightningElement {
             this.showToast('Error', 'Failed to load files ❌', 'error');
         }
     }
+
+    async loadTrashedFiles() {
+    try {
+        const res = await getTrashedFiles();
+        const result = JSON.parse(res);
+
+        // Filter only files deleted from this Account folder
+        const filtered = result.files.filter(file =>
+            file.parents && file.parents.includes(this.subFolderId)
+        );
+
+        this.trashedFiles = filtered.map(file => ({
+            ...file,
+            formattedSize: this.formatBytes(file.size),
+            formattedDate: new Date(file.modifiedTime).toLocaleString()
+        }));
+
+    } catch (error) {
+        this.showToast('Error', 'Failed to load trashed files ❌', 'error');
+    }
+}
+
+async refreshAllFiles() {
+    await Promise.all([
+        this.loadFiles(),
+        this.loadTrashedFiles()
+    ]);
+}
 
     // UPLOAD SECTION
     handleUploadToggle(event) {
@@ -204,7 +237,87 @@ export default class AccountGoogleDrive extends LightningElement {
         });
     }
 
-    // REPORT GENERATION
+    // FILE ACTIONS
+    handlePreview(event) {
+        const fileId = event.currentTarget.dataset.id;
+        window.open(
+            `https://drive.google.com/file/d/${fileId}/view`,
+            '_blank'
+        );
+    }
+
+    handleDownload(event) {
+        const fileId = event.currentTarget.dataset.id;
+        window.open(
+            `https://drive.google.com/uc?id=${fileId}&export=download`,
+            '_blank'
+        );
+    }
+
+    async handleDeleteClick(event) {
+
+        const fileId = event.currentTarget.dataset.id;
+
+        const confirmDelete = await LightningConfirm.open({
+            message: 'Are you sure you want to move this file to trash?',
+            theme: 'warning',
+            label: 'Confirm Move to Trash'
+        });
+
+        if (!confirmDelete) return;
+
+        try {
+            await moveFileToTrash({ fileId });
+
+            this.showToast('Success', 'File Moved To Trash 🗑️', 'success');
+            await this.refreshAllFiles();
+
+        } catch (error) {
+            this.showToast('Error', 'Delete failed ❌', 'error');
+        }
+    }
+
+    async handleRestore(event) {
+
+    const fileId = event.currentTarget.dataset.id;
+
+    try {
+        await restoreFile({ fileId });
+
+        this.showToast('Success', 'File Restored Successfully ♻️', 'success');
+
+        await this.refreshAllFiles();
+
+    } catch (error) {
+        this.showToast('Error', 'Restore failed ❌', 'error');
+    }
+}
+
+async handlePermanentDelete(event) {
+
+    const fileId = event.currentTarget.dataset.id;
+
+    const confirmDelete = await LightningConfirm.open({
+        message: 'Are you sure you want to permanently delete this file?',
+        theme: 'error',
+        label: 'Permanent Delete'
+    });
+
+    if (!confirmDelete) return;
+
+    try {
+        await permanentlyDeleteFile({ fileId });
+
+        this.showToast('Success', 'File Permanently Deleted 🔥', 'success');
+
+        await this.refreshAllFiles();
+
+    } catch (error) {
+        this.showToast('Error', 'Permanent delete failed ❌', 'error');
+    }
+}
+
+// REPORT GENERATION
     async generateReport() {
         try {
             this.isLoading = true;
@@ -235,7 +348,7 @@ export default class AccountGoogleDrive extends LightningElement {
             if (!confirmReplace) return;
 
             // Delete old report
-            await deleteFile({ fileId: existingFileId });
+            await moveFileToTrash({ fileId: existingFileId });
 
             // Generate new report
             await generateAndUploadAccountReport({
@@ -250,46 +363,6 @@ export default class AccountGoogleDrive extends LightningElement {
             this.showToast('Error', 'Report generation failed ❌', 'error');
         } finally {
             this.isLoading = false;
-        }
-    }
-
-    // FILE ACTIONS
-    handlePreview(event) {
-        const fileId = event.currentTarget.dataset.id;
-        window.open(
-            `https://drive.google.com/file/d/${fileId}/view`,
-            '_blank'
-        );
-    }
-
-    handleDownload(event) {
-        const fileId = event.currentTarget.dataset.id;
-        window.open(
-            `https://drive.google.com/uc?id=${fileId}&export=download`,
-            '_blank'
-        );
-    }
-
-    async handleDeleteClick(event) {
-
-        const fileId = event.currentTarget.dataset.id;
-
-        const confirmDelete = await LightningConfirm.open({
-            message: 'Are you sure you want to delete this file?',
-            theme: 'warning',
-            label: 'Confirm Delete'
-        });
-
-        if (!confirmDelete) return;
-
-        try {
-            await deleteFile({ fileId });
-
-            this.showToast('Success', 'File deleted 🗑️', 'success');
-            await this.loadFiles();
-
-        } catch (error) {
-            this.showToast('Error', 'Delete failed ❌', 'error');
         }
     }
 

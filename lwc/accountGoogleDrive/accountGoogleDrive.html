@@ -209,6 +209,86 @@
                             </div>
                         </template>
 
+						<!-- Trashed Files Section -->
+						<div class="table-section" style="margin-top:30px;">
+
+							<h3 class="section-title">
+								Trashed Files
+							</h3>
+
+							<!-- If Trashed Files Exist -->
+							<template if:true={trashedFiles.length}>
+								<div class="table-container">
+									<table class="custom-table">
+										<thead>
+											<tr>
+												<th>File Name</th>
+												<th>Size</th>
+												<th>Deleted On</th>
+												<th>Action</th>
+											</tr>
+										</thead>
+										<tbody>
+											<template for:each={trashedFiles} for:item="file">
+												<tr key={file.id}>
+													<td>
+														<div class="file-name-wrapper">
+															<lightning-icon
+																icon-name="utility:delete"
+																size="x-small">
+															</lightning-icon>
+
+															<span class="file-text">
+																{file.name}
+															</span>
+														</div>
+													</td>
+
+													<td>{file.formattedSize}</td>
+													<td>{file.formattedDate}</td>
+
+													<td>
+														<div class="action-buttons">
+
+															<!-- Restore -->
+															<lightning-button-icon
+																icon-name="utility:refresh"
+																data-id={file.id}
+																onclick={handleRestore}
+																alternative-text="Restore">
+															</lightning-button-icon>
+
+															<!-- Permanent Delete -->
+															<lightning-button-icon
+																icon-name="utility:delete"
+																data-id={file.id}
+																onclick={handlePermanentDelete}
+																alternative-text="Delete Permanently">
+															</lightning-button-icon>
+
+														</div>
+													</td>
+												</tr>
+											</template>
+										</tbody>
+									</table>
+								</div>
+							</template>
+
+							<!-- No Trashed Files -->
+							<template if:false={trashedFiles.length}>
+								<div class="no-files-container">
+									<lightning-icon
+										icon-name="utility:delete"
+										size="large"
+										class="no-files-icon">
+									</lightning-icon>
+									<p>No trashed files for this Account.</p>
+								</div>
+							</template>
+
+						</div>
+
                     </template>
 
                 </div>

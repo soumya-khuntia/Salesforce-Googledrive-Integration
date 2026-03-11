@@ -155,18 +155,76 @@ public with sharing class GoogleDriveUpload {
     }
 
     @AuraEnabled
-    public static void deleteFile(String fileId) {
-        HttpRequest req = new HttpRequest();
-        req.setEndpoint('callout:GoogleDrive/drive/v3/files/' + fileId);
-        req.setMethod('DELETE');
+	public static void moveFileToTrash(String fileId) {
 
-        Http http = new Http();
-        HttpResponse res = http.send(req);
+		HttpRequest req = new HttpRequest();
+		req.setEndpoint('callout:GoogleDrive/drive/v3/files/' + fileId);
+		req.setMethod('PATCH');
+		req.setHeader('Content-Type', 'application/json');
+		req.setBody('{"trashed": true}');
 
-        if (res.getStatusCode() != 204) {
-            throw new AuraHandledException('Failed to delete file');
-        }
-    }
+		Http http = new Http();
+		HttpResponse res = http.send(req);
+
+		if (res.getStatusCode() != 200) {
+			throw new AuraHandledException(
+				'Failed to move file to trash: ' + res.getBody()
+			);
+		}
+	}
+
+	@AuraEnabled
+	public static void restoreFile(String fileId) {
+
+		HttpRequest req = new HttpRequest();
+		req.setEndpoint('callout:GoogleDrive/drive/v3/files/' + fileId);
+		req.setMethod('PATCH');
+		req.setHeader('Content-Type', 'application/json');
+		req.setBody('{"trashed": false}');
+
+		Http http = new Http();
+		HttpResponse res = http.send(req);
+
+		if (res.getStatusCode() != 200) {
+			throw new AuraHandledException(
+				'Failed to restore file: ' + res.getBody()
+			);
+		}
+	}
+
+	@AuraEnabled
+	public static void permanentlyDeleteFile(String fileId) {
+
+		HttpRequest req = new HttpRequest();
+		req.setEndpoint('callout:GoogleDrive/drive/v3/files/' + fileId);
+		req.setMethod('DELETE');
+
+		Http http = new Http();
+		HttpResponse res = http.send(req);
+
+		if (res.getStatusCode() != 204) {
+			throw new AuraHandledException(
+				'Failed to permanently delete file: ' + res.getBody()
+			);
+		}
+	}
+
+    @AuraEnabled
+	public static String getTrashedFiles() {
+		HttpRequest req = new HttpRequest();
+		req.setEndpoint('callout:GoogleDrive/drive/v3/files?q=trashed=true&fields=files(id,name,mimeType,size,modifiedTime,parents)');
+		req.setMethod('GET');
+		req.setHeader('Content-Type', 'application/json');
+
+		Http http = new Http();
+		HttpResponse res = http.send(req);
+
+		if (res.getStatusCode() == 200) {
+			return res.getBody();
+		} else {
+			throw new AuraHandledException('Error fetching trashed files: ' + res.getBody());
+		}
+	}
 
     @AuraEnabled
     public static String checkExistingReport(String folderId, Id accountId) {
